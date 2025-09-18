@@ -62,10 +62,14 @@ export class FlomoImporter {
             flomo.files[memoFilePath].push(content);
         }
 
+        const attachmentPrefix = `${this.config["flomoTarget"]}/file/`;
         for (const filePath in flomo.files) {
+            const content = flomo.files[filePath]
+                .join("\n\n---\n\n")
+                .replace(/!\[\]\(file\//gi, `![](${attachmentPrefix}`);
             await this.app.vault.adapter.write(
                 filePath,
-                flomo.files[filePath].join("\n\n---\n\n")
+                content
             );
         }
 
@@ -81,14 +85,14 @@ export class FlomoImporter {
         // 2. Unzip flomo_backup.zip to workspace
         const files = await decompress(this.config["rawDir"], tmpDir)
 
-        // 3. copy attachments to ObVault
-        const obVaultConfig = await fs.readJson(`${this.config["baseDir"]}/${this.app.vault.configDir}/app.json`)
-        const attachementDir = obVaultConfig["attachmentFolderPath"] + "/flomo/";
+        // 3. copy attachments to <vault>/<flomoTarget>/file/
+        const attachmentTargetDir = `${this.config["flomoTarget"]}/file/`;
+        await fs.mkdirp(`${this.config["baseDir"]}/${attachmentTargetDir}`);
 
         for (const f of files) {
             if (f.type == "directory" && f.path.endsWith("/file/")) {
-                console.debug(`DEBUG: copying from ${tmpDir}/${f.path} to ${this.config["baseDir"]}/${attachementDir}`)
-                await fs.copy(`${tmpDir}/${f.path}`, `${this.config["baseDir"]}/${attachementDir}`);
+                console.debug(`DEBUG: copying from ${tmpDir}/${f.path} to ${this.config["baseDir"]}/${attachmentTargetDir}`)
+                await fs.copy(`${tmpDir}/${f.path}`, `${this.config["baseDir"]}/${attachmentTargetDir}`);
                 break
             }
 
@@ -105,13 +109,13 @@ export class FlomoImporter {
         // 5. Ob Intergations
         // If Generate Moments
         if (this.config["optionsMoments"] != "skip") {
-            await generateMoments(app, memos, this.config);
+            await generateMoments(this.app, memos, this.config);
         }
 
 
         // If Generate Canvas
         if (this.config["optionsCanvas"] != "skip") {
-            await generateCanvas(app, memos, this.config);
+            await generateCanvas(this.app, memos, this.config);
         }
 
 
